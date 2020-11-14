@@ -1,0 +1,432 @@
+---
+title: "R Notebook"
+output:
+  html_notebook: default
+  pdf_document:
+    latex_engine: xelatex
+always_allow_html: yes
+---
+
+```{r setup, include=FALSE}
+
+# This chunk shows/hides the code in your final report. When echo = TRUE, the code
+# is shown in the report. When echo = FALSE, the code is hidden from the final report.
+# We would like to see your code, so please leave the setting as is during the course.
+# This chunk will not show up in your reports, so you can safely ignore its existence.
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+The following is your first chunk to start with. Remember, you can add chunks using the menu
+above (Insert -> R) or using the keyboard shortcut Ctrl+Alt+I. A good practice is to use
+different code chunks to answer different questions. You can delete this comment if you like.
+
+Other useful keyboard shortcuts include Alt- for the assignment operator, and Ctrl+Shift+M
+for the pipe operator. You can delete these reminders if you don't want them in your report.
+
+***
+
+Let's first Load all the required libraries
+```{r}
+#setwd("C:/GDrive/chingtea/BUDT758T2020/code/timeSeries/") #Don't forget to set your working directory before you start!
+
+library("tidyverse")
+library("fpp3")
+library("plotly")
+library("skimr")
+library("lubridate")
+
+```
+```{r}
+tsDia <- read_csv('antidiabetic.csv')
+```
+
+
+Read the data
+```{r}
+month <- as_tibble(yearmonth(seq(as.Date("1991-07-01"), as.Date("2008-06-01"), by = "1 month"))) %>% 
+  rename(month=value)
+
+
+tsDia <- read_csv('antidiabetic.csv') %>%
+  bind_cols(month) %>% 
+  select(month, drugSales = value) %>%
+  as_tsibble(index = month)
+
+```
+
+***
+## Understanding time series data
+
+### Boston marathon
+#### Trend without seasonality
+```{r}
+tsBoston <-
+  boston_marathon %>% 
+  filter(Event == "Men's open division") %>%
+  select(Year, Time) %>%
+  as_tsibble()
+
+```
+
+### Winning times at the Boston Marathon
+```{r}
+plotBoston <-
+  tsBoston %>% 
+  autoplot() +
+  xlab("Year (yearly data)") + ylab("Time in HH:MM:SS") +
+  ggtitle("Winning times at the Boston Marathon (Men's open division)")
+ggplotly(plotBoston)
+
+```
+
+***
+
+### Antidiabetic drug sales
+
+#### Trend and seasonality are both evident
+```{r}
+plotDia <-
+  tsDia %>% 
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotDia)
+
+```
+
+
+
+### Antidiabetic drug decomposed
+```{r}
+plotDiaDecomposed <- 
+  tsDia %>%
+  model(STL(drugSales ~ trend(window=10) + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL decomposition)") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotDiaDecomposed)
+
+```
+
+
+### Seasonal plot for antidiabetic drug sales
+```{r}
+plotDiaSeason <-
+  tsDia %>%
+  gg_season(drugSales, labels = "both") +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Antidiabetic drug sales")
+plotDiaSeason
+
+```
+
+***
+
+###  U.S. gasoline supplied
+#### Both trend and seasonality
+
+```{r}
+tsGas <-us_gasoline
+
+```
+
+U.S. finished motor gasoline product supplied
+```{r}
+plotGas <-
+  tsGas %>% 
+  autoplot() +
+  xlab("Year (weekly data)") + ylab("Million barrels per week") +
+  ggtitle("U.S. finished motor gasoline product supplied") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotGas)
+
+```
+
+### U.S. gasoline supplied decomposed
+```{r}
+plotGasDecomposed <- 
+  tsGas %>%
+  model(STL(Barrels ~ trend() + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year (weekly data)") + ylab("Million barrels per week") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL) for U.S. gasoline data") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotGasDecomposed)
+plotGasDecomposed
+```
+
+***
+
+### U.S. retail employment Data
+#### Trend overcomes seasonality
+
+```{r}
+tsEmployment <-
+  us_employment %>% 
+  filter(Title == "Retail Trade", Month >= '1980-01-01') %>%
+  select(Month, Employed)
+
+```
+
+#### U.S. retail employment
+```{r}
+plotEmp <-
+  tsEmployment %>% 
+  autoplot() +
+  xlab("Year (monthly data)") + ylab("Number of employed in retail (000)") +
+  ggtitle("U.S. retail employment data")
+ggplotly(plotEmp)
+
+```
+
+
+### U.S. retail employment decomposed
+```{r}
+plotEmpDecomposed <- 
+  tsEmployment %>%
+  model(STL(Employed ~ trend() + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year (monthly data)") + ylab("Number of employed in retail (000)") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL) for U.S. retail employment data") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotEmpDecomposed
+
+```
+
+***
+
+### U.S. personal consumption expenditure data
+#### Both trend and seasonality are weak
+```{r}
+tsEcon <- us_change %>% 
+  filter(Quarter >= '1980-01-01') %>%
+  select(Quarter, Consumption)
+
+```
+
+#### U.S. personal consumption
+```{r}
+plotEcon <-
+  tsEcon %>% 
+  autoplot() +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("U.S. personal consumption expenditure data") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotEcon)
+
+```
+
+#### U.S. consumption decomposed
+```{r}
+plotEconDecomposed <- 
+  tsEcon %>%
+  model(STL(Consumption ~ trend() + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year (quarterly data)") + ylab("Percentage changes in personal consumption") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL) for U.S. consumption data") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotEconDecomposed
+
+```
+
+***
+
+### Accidental deaths in the U.S.
+#### Sesonality without trend
+```{r}
+tsAcc <-
+  as_tsibble(USAccDeaths) %>% 
+  rename(numOfAccDeaths = value)
+
+```
+
+Number of accidental deaths in the U.S.
+```{r}
+plotAcc <-
+  tsAcc %>% 
+  autoplot() +
+  xlab("Year") + ylab("Number of accidental deaths") +
+  ggtitle("Number of accidental deaths in the U.S.") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotAcc)
+
+```
+
+#### Accidental deaths decomposed
+```{r}
+plotAcc <- 
+  tsAcc %>%
+  model(STL(numOfAccDeaths ~ trend() + season(window='periodic'), robust = TRUE)) %>%
+  components() %>%
+  autoplot() +
+  xlab("Year (monthly data)") + ylab("Number of accidental deaths") +
+  ggtitle("Number of accidental deaths in the U.S.") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotAcc
+
+```
+
+### Accidental deaths seasonal subseries
+```{r}
+plotAccSub <- 
+  tsAcc %>% 
+  gg_subseries(numOfAccDeaths) +
+  ylab("Number of accidental deaths") +
+  xlab("Year (monthly data)") +
+  ggtitle("Seasonal subseries plot: Number of accidental deaths in the U.S.")
+plotAccSub
+
+```
+
+***
+## Preliminary analysis of time series data
+
+#### Autocorrelation function plot for the antidiabetic drug sales data
+```{r}
+plotDiaACF <-
+  tsDia %>%
+  ACF(drugSales, lag_max = 48) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the antidiabetic drug sales data")
+plotDiaACF
+
+```
+
+### Lag plots for the accidental deaths data
+```{r}
+plotAccLag <-
+  tsAcc %>%
+  gg_lag(numOfAccDeaths, geom='point') +
+  xlab(NULL) + ylab(NULL) +
+  ggtitle("Lag plots for the accidental deaths data")
+ggplotly(plotAccLag)
+
+```
+
+### Autocorrelation function (ACF) plot for the accidental deaths data
+```{r}
+plotAccACF <-
+  tsAcc %>%
+  ACF(numOfAccDeaths, lag_max = 9) %>%
+  autoplot() +  ggtitle("Autocorrelation function (ACF) plot for the accidental deaths data")
+plotAccACF
+
+```
+
+
+
+### Noise(randomly generated)
+```{r}
+set.seed(333)
+y <- tsibble(sample = 1:100, Noise = rnorm(100), index = sample)
+y %>%
+  autoplot(Noise) + ggtitle("Noise over time") + xlab("Time")
+
+```
+
+### Autocorrection for the noise
+```{r}
+y %>%
+  ACF(Noise) %>% autoplot()
+
+```
+
+### Additive vs. multiplicative decomposition
+### Remember antidiabetic drug sales?
+```{r}
+plotDia <-
+  tsDia %>% 
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+ggplotly(plotDia)
+
+```
+
+### Additive decomposition
+```{r}
+tsDia %>% 
+  model(classical_decomposition(drugSales, type = "additive")) %>%
+  components() %>%
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Classical additive decomposition of antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+
+```
+
+### Remember the STL decomposition?
+```{r}
+plotDiaDecomposed <- 
+  tsDia %>%
+  model(STL(drugSales ~ trend(window=10) + season(window='periodic'), robust = TRUE)) %>% 
+  components() %>%
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Seasonal and Trend decomposition using Loess (STL decomposition)") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+plotDiaDecomposed
+
+```
+
+### Multiplicative decomposition
+```{r}
+tsDia %>% 
+  model(classical_decomposition(drugSales, type = "multiplicative")) %>%
+  components() %>%
+  autoplot() +
+  xlab("Year") + ylab("Total prescriptions ($ million)") +
+  ggtitle("Classical multiplicative decomposition of antidiabetic drug sales") +
+  scale_x_date(date_breaks = "years" , date_labels = "%y")
+
+```
+
+***
+
+### Decompose data without seasonality(STL)
+```{r}
+plotBostonDecomposed <-
+  tsBoston %>%
+  mutate(Seconds = as.numeric(Time, units="seconds")) %>%
+  select(Year, Seconds) %>%
+  model(STL(Seconds ~ trend(), robust = TRUE)) %>%
+  components() %>%
+  autoplot() +
+  xlab("Year (yearly data)") + ylab("Time in seconds") +
+  ggtitle("Winning times at the Boston Marathon (Men's open division)")
+plotBostonDecomposed
+
+```
+
+### Removing seasonal variation(STL)
+### U.S. retail employment data Seasonally Adjusted
+```{r}
+plotEmpSeasonallyAdjusted <-
+  tsEmployment %>%
+  autoplot(Employed, color='#A9A9B0') +
+  autolayer(components(tsEmployment %>% model(STL(Employed))), season_adjust, color='#1490D4') +
+  xlab("Year (monthly data)") + ylab("Number of employed in retail (000)") +
+  ggtitle("U.S. retail employment data")
+ggplotly(plotEmpSeasonallyAdjusted)
+
+```
+
+```{r}
+us_employment %>%
+  filter(Title %in% c('Construction', 'Manufacturing', 'Leisure and Hospitality')) %>% 
+  as_tsibble(key=Title) %>%
+  select(-Series_ID) %>% 
+  features(Employed, feat_stl) %>% 
+  rename_all(~str_remove(.x, '_year'))
+
+```
+
